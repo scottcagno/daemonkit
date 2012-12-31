@@ -21,20 +21,19 @@ import (
 // daemonizer & methods
 type Daemonizer struct {
 	tempf	string
-	ts  	bool
 	psdef	os.ProcAttr
 }
 
 // return a new daemonizer instance
-func NewDaemonizer(tempf string, ts bool) *Daemonizer {
+func NewDaemonizer(tempf string) *Daemonizer {
 	if !strings.HasSuffix(tempf, "/") {
 		tempf = tempf+"/"
 	}
-	return &Daemonizer{tempf: tempf, ts: ts,}
+	return &Daemonizer{tempf: tempf}
 }
 
 // switch arguments
-func (d *Daemonizer) Switch(args []string) {
+func (d *Daemonizer) WatchCli(args []string) {
 	if len(args) < 3 {
 		fmt.Printf("usage: %s {start|stop|restart} prog ...args\n", args[0])
 		os.Exit(1)
@@ -109,12 +108,8 @@ func (d *Daemonizer) Sample(prog string) {
 
 // write tmp file containing program pid and program info
 func (d *Daemonizer) WPidFile(prog string, pid int) {
-	var stamp int64
-	if d.ts {
-		stamp = time.Now().Unix()
-	}
 	fileName := fmt.Sprintf("%s%s.pid", d.tempf, prog)
-	fileData := fmt.Sprintf("%d,%s,%d", pid, fileName, stamp)
+	fileData := fmt.Sprintf("%d,%s,%d", pid, fileName, time.Now().Unix())
 	err := ioutil.WriteFile(fileName, []byte(fileData), 0644)
 	if err != nil {
 		vomit(err)
