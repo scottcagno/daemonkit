@@ -13,7 +13,7 @@ create a daemonizer
   </code>
 </pre>
 
-usage
+cli usage
 <pre>
   <code>
     usage: daemonizer {start|stop|restart} prog ...args
