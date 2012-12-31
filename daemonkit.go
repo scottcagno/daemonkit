@@ -18,7 +18,7 @@ import (
 	"os"
 )
 
-// daemonizer & methods
+// daemonizer
 type Daemonizer struct {
 	tempf	string
 	psdef	os.ProcAttr
@@ -32,7 +32,7 @@ func NewDaemonizer(tempf string) *Daemonizer {
 	return &Daemonizer{tempf: tempf}
 }
 
-// switch arguments
+// watch command line arguments
 func (d *Daemonizer) WatchCli(args []string) {
 	if len(args) < 3 {
 		fmt.Printf("usage: %s {start|sample|stop|restart} prog ...args\n", args[0])
@@ -57,7 +57,7 @@ func (d *Daemonizer) WatchCli(args []string) {
 	}
 }
 
-// start process
+// start daemon process
 func (d *Daemonizer) Start(prog string, args []string) {
 	dn, _ := os.Open(os.DevNull)
 	d.psdef.Files = []*os.File{dn, dn, dn}
@@ -70,7 +70,7 @@ func (d *Daemonizer) Start(prog string, args []string) {
 	fmt.Printf("[START] '%s' 	-- OK!\n", prog)
 }
 
-// stop process
+// stop daemon process
 func (d *Daemonizer) Stop(prog string, args []string) {
 	fileData := d.RPidFile(prog)
 	pid, _ := strconv.Atoi(fileData[0])
@@ -90,7 +90,7 @@ func (d *Daemonizer) Stop(prog string, args []string) {
 	fmt.Printf("[STOP] '%s' 	-- OK!\n", prog)
 }
 
-// sample process
+// sample daemon process
 func (d *Daemonizer) Sample(prog string) {
 	fileData := d.RPidFile(prog)
 	pid, _ := strconv.Atoi(fileData[0])
