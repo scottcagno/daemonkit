@@ -35,7 +35,7 @@ func NewDaemonizer(tempf string) *Daemonizer {
 // switch arguments
 func (d *Daemonizer) WatchCli(args []string) {
 	if len(args) < 3 {
-		fmt.Printf("usage: %s {start|stop|restart} prog ...args\n", args[0])
+		fmt.Printf("usage: %s {start|sample|stop|restart} prog ...args\n", args[0])
 		os.Exit(1)
 	}
 	actn := args[1]
@@ -52,7 +52,7 @@ func (d *Daemonizer) WatchCli(args []string) {
 	case "sample":
 		d.Sample(prgm)
 	default:
-		fmt.Printf("usage: %s {start|stop|restart} prog ...args\n", args[0])
+		fmt.Printf("usage: %s {start|sample|stop|restart} prog ...args\n", args[0])
 		os.Exit(1)
 	}
 }
