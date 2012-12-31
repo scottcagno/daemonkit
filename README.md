@@ -1,4 +1,21 @@
-daemonize
+daemonkit
 =====
-easily turn any program into a daemon
-<pre><code>usage: daemonize {start|stop|restart} prog</pre></code>
+create a daemonizer
+<pre>
+  <code>
+    import dk "daemonkit"
+    import "os"
+    ...
+    func main() {
+      daemon := dk.NewDaemonizer("/tmp")
+      daemon.WatchCli(os.Args)
+    }
+  </code>
+</pre>
+
+usage
+<pre>
+  <code>
+    usage: daemonizer {start|stop|restart} prog ...args
+  </code>
+</pre>
