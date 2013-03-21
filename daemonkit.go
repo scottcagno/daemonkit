@@ -9,31 +9,36 @@
 package daemonkit
 
 import (
- 	"io/ioutil"
-	"strings"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
-	"fmt"
-	"os"
 )
 
 // daemonizer
 type Daemonizer struct {
-	tempf	string
-	psdef	os.ProcAttr
+	tempf string
+	psdef os.ProcAttr
+	null  *os.File
 }
 
 // return a new daemonizer instance
-func NewDaemonizer(tempf string) *Daemonizer {
-	if !strings.HasSuffix(tempf, "/") {
-		tempf = tempf+"/"
+func NewDaemonizer(file string) *Daemonizer {
+	if !strings.HasSuffix(file, "/") {
+		file = file + "/"
 	}
-	return &Daemonizer{tempf: tempf}
+	null, _ := os.Create(os.DevNull)
+	return &Daemonizer{
+		tempf: file,
+		null:  null,
+	}
 }
 
 // watch command line arguments
-func (d *Daemonizer) WatchCli(args []string) {
+func (self *Daemonizer) WatchCli(args []string) {
 	if len(args) < 3 {
 		fmt.Printf("usage: %s {start|sample|stop|restart} prog ...args\n", args[0])
 		os.Exit(1)
@@ -43,14 +48,14 @@ func (d *Daemonizer) WatchCli(args []string) {
 	othr := args[3:]
 	switch actn {
 	case "start":
-		d.Start(prgm, othr)
+		self.Start(prgm, othr)
 	case "stop":
-		d.Stop(prgm, othr)
+		self.Stop(prgm, othr)
 	case "restart":
-		d.Stop(prgm, othr)
-		defer d.Start(prgm, othr)
+		self.Stop(prgm, othr)
+		defer self.Start(prgm, othr)
 	case "sample":
-		d.Sample(prgm)
+		self.Sample(prgm)
 	default:
 		fmt.Printf("usage: %s {start|sample|stop|restart} prog ...args\n", args[0])
 		os.Exit(1)
@@ -58,26 +63,25 @@ func (d *Daemonizer) WatchCli(args []string) {
 }
 
 // start daemon process
-func (d *Daemonizer) Start(prog string, args []string) {
-	dn, _ := os.Open(os.DevNull)
-	// first three fd's rep stdin, stdout, stderr
-	d.psdef.Files = []*os.File{
-		dn, 	// stdin
-		dn, 	// stdout
-		dn,	// stderr
+func (self *Daemonizer) Start(prog string, args []string) {
+	logger, _ := os.Create(self.tempf + prog + ".log")
+	self.psdef.Files = []*os.File{
+		self.null, // stdin
+		self.null, // stdout
+		logger,    // stderr -- log all errrors
 	}
-	ps, err := os.StartProcess(prog, args, &d.psdef)
+	ps, err := os.StartProcess(prog, args, &self.psdef)
 	if err != nil {
 		vomit(err)
 	}
-	d.WPidFile(prog, ps.Pid)
+	self.WPidFile(prog, ps.Pid)
 	ps.Release()
 	fmt.Printf("[START] '%s' 	-- OK!\n", prog)
 }
 
 // stop daemon process
-func (d *Daemonizer) Stop(prog string, args []string) {
-	fileData := d.RPidFile(prog)
+func (self *Daemonizer) Stop(prog string, args []string) {
+	fileData := self.RPidFile(prog)
 	pid, _ := strconv.Atoi(fileData[0])
 	ps, err := os.FindProcess(pid)
 	if err != nil {
@@ -87,7 +91,7 @@ func (d *Daemonizer) Stop(prog string, args []string) {
 	if err != nil {
 		vomit(err)
 	}
-	fileName := fmt.Sprintf("%s%s.pid", d.tempf, prog)
+	fileName := fmt.Sprintf("%s%s.pid", self.tempf, prog)
 	err = os.Remove(fileName)
 	if err != nil {
 		vomit(err)
@@ -96,8 +100,8 @@ func (d *Daemonizer) Stop(prog string, args []string) {
 }
 
 // sample daemon process
-func (d *Daemonizer) Sample(prog string) {
-	fileData := d.RPidFile(prog)
+func (self *Daemonizer) Sample(prog string) {
+	fileData := self.RPidFile(prog)
 	pid, _ := strconv.Atoi(fileData[0])
 	ps, err := os.FindProcess(pid)
 	if err != nil {
@@ -112,8 +116,8 @@ func (d *Daemonizer) Sample(prog string) {
 }
 
 // write tmp file containing program pid and program info
-func (d *Daemonizer) WPidFile(prog string, pid int) {
-	fileName := fmt.Sprintf("%s%s.pid", d.tempf, prog)
+func (self *Daemonizer) WPidFile(prog string, pid int) {
+	fileName := fmt.Sprintf("%s%s.pid", self.tempf, prog)
 	fileData := fmt.Sprintf("%d,%s,%d", pid, fileName, time.Now().Unix())
 	err := ioutil.WriteFile(fileName, []byte(fileData), 0644)
 	if err != nil {
@@ -122,8 +126,8 @@ func (d *Daemonizer) WPidFile(prog string, pid int) {
 }
 
 // read tmp file containing program pid and program info
-func (d *Daemonizer) RPidFile(prog string) []string {
-	fileName := fmt.Sprintf("%s%s.pid", d.tempf, prog)
+func (self *Daemonizer) RPidFile(prog string) []string {
+	fileName := fmt.Sprintf("%s%s.pid", self.tempf, prog)
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		vomit(err)
@@ -137,13 +141,13 @@ func (d *Daemonizer) RPidFile(prog string) []string {
 
 // error handler
 func vomit(err error) {
-	fmt.Printf("**%s\n", err)
+	fmt.Errorf("**%s\n", err)
 	os.Exit(1)
 }
 
 // return rounded time elapsed, string
 func timeElapsed(t1 int64) string {
-	t := time.Now().Unix()-t1
+	t := time.Now().Unix() - t1
 	if t < 1 {
 		return fmt.Sprintf("0 seconds")
 	}
