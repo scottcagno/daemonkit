@@ -60,7 +60,12 @@ func (d *Daemonizer) WatchCli(args []string) {
 // start daemon process
 func (d *Daemonizer) Start(prog string, args []string) {
 	dn, _ := os.Open(os.DevNull)
-	d.psdef.Files = []*os.File{dn, dn, dn}
+	// first three fd's rep stdin, stdout, stderr
+	d.psdef.Files = []*os.File{
+		dn, 	// stdin
+		dn, 	// stdout
+		dn,	// stderr
+	}
 	ps, err := os.StartProcess(prog, args, &d.psdef)
 	if err != nil {
 		vomit(err)
